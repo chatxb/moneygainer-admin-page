@@ -1,1 +1,427 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto-X Enterprise Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #0f172a; --bg-panel: #1e293b; --bg-hover: #334155;
+            --primary: #38bdf8; --primary-glow: rgba(56, 189, 248, 0.2);
+            --accent: #8b5cf6; --success: #10b981; --warning: #f59e0b;
+            --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* ====== LOGIN PAGE CSS ====== */
+        #auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-base); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(15px);
+        }
+        .login-card {
+            background: var(--bg-panel); border: 1px solid var(--primary);
+            padding: 40px; border-radius: 24px; width: 380px; text-align: center;
+            box-shadow: 0 0 40px var(--primary-glow);
+        }
+        .login-card i { font-size: 50px; color: var(--primary); margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--primary)); }
+
+        /* Dashboard Hidden initially */
+        #admin-wrapper { display: none; width: 100%; height: 100vh; }
+
+        /* ====== ORIGINAL THEME CSS (NO CHANGES) ====== */
+        aside { width: 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
+        .brand { padding: 24px; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--border); }
+        .brand i { color: var(--primary); filter: drop-shadow(0 0 8px var(--primary-glow)); }
+        .brand span { background: linear-gradient(to right, #38bdf8, #8b5cf6); -webkit-background-clip: text; color: transparent; }
+        .nav-menu { padding: 20px 12px; flex: 1; overflow-y: auto; }
+        .nav-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 1px; margin: 15px 0 10px 12px; }
+        .nav-item { padding: 12px 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 14px; color: var(--text-muted); font-size: 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: var(--bg-hover); color: var(--text-main); }
+        .nav-item.active { background: rgba(56, 189, 248, 0.1); color: var(--primary); font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.2); }
+        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent 40%); }
+        header { height: 76px; padding: 0 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); }
+        .content-area { flex: 1; padding: 32px; overflow-y: auto; }
+        .tab-content { display: none; animation: fadeUp 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+        .stat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .trend { font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px; }
+        .trend.up { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .trend.down { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        .panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
+        .btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #0f172a; }
+        .btn-success { background: var(--success); color: #000; }
+        .search-box { display: flex; align-items: center; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; margin-bottom: 20px; width: 400px; }
+        .search-box input { background: transparent; border: none; color: #fff; outline: none; margin-left: 10px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <div id="auth-overlay">
+        <div class="login-card">
+            <i class="fa-solid fa-user-shield"></i>
+            <h2 style="margin-bottom: 8px;">Master Admin</h2>
+            <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 25px;">Enter credentials to unlock dashboard</p>
+            <input type="email" id="login-email" class="form-control" placeholder="Admin Email" style="margin-bottom: 15px;">
+            <input type="password" id="login-pass" class="form-control" placeholder="Password" style="margin-bottom: 20px;">
+            <button class="btn btn-primary" style="width: 100%;" onclick="loginAdmin()">Authorize Session</button>
+            <p id="auth-err" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;">Invalid Login Details!</p>
+        </div>
+    </div>
+
+    <div id="admin-wrapper" style="display:none; width:100%;">
+        <aside>
+            <div class="brand"><i class="fa-solid fa-cube"></i> <span>CryptoX Admin</span></div>
+            <div class="nav-menu">
+                <div class="nav-label">Main Menu</div>
+                <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+                <div class="nav-item" onclick="switchTab('users', this)"><i class="fa-solid fa-users"></i> User Manage</div>
+                <div class="nav-label">Monetization</div>
+                <div class="nav-item" onclick="switchTab('ads', this)"><i class="fa-solid fa-rectangle-ad"></i> Ads Setup</div>
+                <div class="nav-item" onclick="switchTab('tasks', this)"><i class="fa-solid fa-list-check"></i> Task Manager</div>
+                <div class="nav-item" onclick="switchTab('economy', this)"><i class="fa-solid fa-scale-balanced"></i> Economy</div>
+                <div class="nav-label">System</div>
+                <div class="nav-item" onclick="switchTab('security', this)"><i class="fa-solid fa-shield-halved"></i> Security <span style="margin-left:auto; background:var(--danger); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px;" id="security-badge">0</span></div>
+                <div class="nav-item" onclick="logoutAdmin()" style="margin-top:20px; color:var(--danger);"><i class="fa-solid fa-power-off"></i> Logout</div>
+            </div>
+        </aside>
+
+        <main>
+            <header>
+                <h2 id="page-title">Dashboard</h2>
+                <div>
+                    <label style="display: inline-block; margin-right: 10px; color: var(--text-muted); font-size: 12px;">Filter Date:</label>
+                    <input type="date" id="admin-date" class="form-control" style="width: auto; display: inline-block; padding: 8px;" onchange="syncAll()">
+                </div>
+            </header>
+            <div class="content-area">
+                <div id="tab-dashboard" class="tab-content active">
+                    <div style="margin-bottom:24px;"><h1>Overview</h1><p style="color:var(--text-muted)">Live statistics and app performance tracking.</p></div>
+                    <div class="grid-4">
+                        <div class="stat-card">
+                            <div class="stat-top"><i class="fa-solid fa-users" style="color:var(--primary)"></i> <div class="trend up" id="tr-users">0%</div></div>
+                            <p style="font-size:12px; color:var(--text-muted)">Total Registered Users</p><h3 id="stat-users">0</h3>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-top"><i class="fa-brands fa-bitcoin" style="color:var(--success)"></i> <div class="trend up" id="tr-coins">0%</div></div>
+                            <p style="font-size:12px; color:var(--text-muted)">Total Coins Mined</p><h3 id="stat-coins">0.0M</h3>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-top"><i class="fa-solid fa-play" style="color:var(--accent)"></i> <div class="trend up" id="tr-ads">0%</div></div>
+                            <p style="font-size:12px; color:var(--text-muted)">Total Ads Watched</p><h3 id="stat-ads">0</h3>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-top"><i class="fa-solid fa-bolt" style="color:var(--warning)"></i> <div class="trend down" id="tr-dau">0%</div></div>
+                            <p style="font-size:12px; color:var(--text-muted)">Daily Active Users (DAU)</p><h3 id="stat-dau">0</h3>
+                        </div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="panel"><h3>Revenue & Ad Impressions</h3><canvas id="revenueChart" height="120"></canvas></div>
+                        <div class="panel"><h3>Recent Signups</h3><div id="signup-list"></div></div>
+                    </div>
+                </div>
+
+                <div id="tab-ads" class="tab-content">
+                    <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="panel">
+                            <h3 style="color:var(--primary); margin-bottom:15px;">Ad Network Setup</h3>
+                            <div class="form-group"><label>Adsgram Block ID</label><input type="text" id="set-ads-id" class="form-control"></div>
+                            <div class="form-group"><label>Fallback Link</label><input type="text" id="set-fallback" class="form-control"></div>
+                        </div>
+                        <div class="panel">
+                            <h3>Reward Config</h3>
+                            <div class="form-group"><label>Mystery Box Reward</label><input type="number" id="set-box" class="form-control"></div>
+                            <div class="form-group"><label>Daily Ads Limit</label><input type="number" id="set-limit" class="form-control"></div>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="saveAds()" style="margin-top:20px;">Save Global Settings</button>
+                </div>
+
+                <div id="tab-tasks" class="tab-content">
+                    <div class="panel">
+                        <h3>Create Task</h3>
+                        <div class="form-grid" style="margin-top:20px;">
+                            <input type="text" id="t-name" class="form-control" placeholder="Task Name">
+                            <input type="number" id="t-reward" class="form-control" placeholder="Reward Amount">
+                            <input type="text" id="t-logo" class="form-control" placeholder="Image/Logo URL">
+                            <input type="text" id="t-link" class="form-control" placeholder="Destination Link (TG/Web)">
+                            <input type="number" id="t-order" class="form-control" placeholder="Position / Serial (e.g. 1, 2, 3)">
+                        </div>
+                        <button class="btn btn-primary" onclick="addTask()" style="margin-top:15px;">Deploy Task</button>
+                    </div>
+                    <div class="panel" style="margin-top:20px;">
+                        <table id="task-table"><thead><tr><th>Position</th><th>Logo</th><th>Task Name</th><th>Reward</th><th>Action</th></tr></thead><tbody></tbody></table>
+                    </div>
+                </div>
+
+                <div id="tab-economy" class="tab-content">
+                    <div class="panel">
+                        <h3>Economy Cost Configuration</h3>
+                        <div class="form-grid">
+                            <div class="form-group"><label>Multi-Tap Upgrade Base Cost</label><input type="number" id="e-tap" class="form-control"></div>
+                            <div class="form-group"><label>Storage Upgrade Base Cost</label><input type="number" id="e-energy" class="form-control"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveEconomy()">Update Costs</button>
+                    </div>
+                </div>
+
+                <div id="tab-users" class="tab-content">
+                    <div class="search-box"><i class="fa-solid fa-search"></i><input type="text" id="u-search" placeholder="Search ID..." onkeyup="filterUsers()"></div>
+                    <div class="panel" style="overflow-x: auto;">
+                        <table>
+                            <thead><tr><th>User ID</th><th>Name</th><th>Edit Coins</th><th>Status / Ban</th></tr></thead>
+                            <tbody id="u-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-security" class="tab-content"><div class="panel"><h3>Security Alerts</h3><table><thead><tr><th>User ID</th><th>Type</th><th>Time</th><th>Action</th></tr></thead><tbody id="alerts-body"></tbody></table></div></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // FIREBASE SETUP
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEk6L1ceXynWlC-LZYyRt1GDRx8eXCHco",
+            authDomain: "money-gainer-a545d.firebaseapp.com",
+            projectId: "money-gainer-a545d",
+            storageBucket: "money-gainer-a545d.firebasestorage.app",
+            messagingSenderId: "87451554201",
+            appId: "1:87451554201:web:fad92965268fe9cedc4308"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let myChart;
+
+        // AUTH LOGIC
+        function loginAdmin() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const err = document.getElementById('auth-err');
+            auth.signInWithEmailAndPassword(email, pass)
+                .then(() => { err.style.display = 'none'; })
+                .catch(error => { err.style.display = 'block'; });
+        }
+
+        function logoutAdmin() { auth.signOut(); }
+
+        // MONITOR SESSION
+        auth.onAuthStateChanged(user => {
+            const overlay = document.getElementById('auth-overlay');
+            const wrapper = document.getElementById('admin-wrapper');
+            if (user) {
+                overlay.style.display = 'none';
+                wrapper.style.display = 'flex';
+                // Set default date to today
+                document.getElementById('admin-date').valueAsDate = new Date();
+                syncAll(); 
+            } else {
+                overlay.style.display = 'flex';
+                wrapper.style.display = 'none';
+            }
+        });
+
+        function switchTab(id, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            el.classList.add('active');
+            document.getElementById('page-title').innerText = id.toUpperCase();
+            syncAll();
+        }
+
+        async function syncAll() {
+            if(!auth.currentUser) return;
+            
+            const selectedDateStr = document.getElementById('admin-date').value;
+            
+            const gDoc = await db.collection("settings").doc("global").get();
+            if (gDoc.exists) {
+                const d = gDoc.data();
+                document.getElementById('stat-ads').innerText = (d.total_ads || 0).toLocaleString();
+                document.getElementById('stat-dau').innerText = (d.dau || 0).toLocaleString();
+                document.getElementById('tr-users').innerText = (d.tr_users || 0) + "%";
+                document.getElementById('tr-coins').innerText = (d.tr_coins || 0) + "%";
+                document.getElementById('tr-ads').innerText = (d.tr_ads || 0) + "%";
+                document.getElementById('tr-dau').innerText = (d.tr_dau || 0) + "%";
+                document.getElementById('set-ads-id').value = d.ads_block_id || "";
+                document.getElementById('set-fallback').value = d.fallback_url || "";
+                document.getElementById('set-box').value = d.box_reward || 0;
+                document.getElementById('set-limit').value = d.ad_limit || 0;
+                document.getElementById('e-tap').value = d.multi_tap_cost || 0;
+                document.getElementById('e-energy').value = d.storage_cost || 0;
+            }
+
+            const alertsBody = document.getElementById('alerts-body');
+            const alertSnap = await db.collection("alerts").orderBy("timestamp", "desc").limit(5).get();
+            alertsBody.innerHTML = "";
+            document.getElementById('security-badge').innerText = alertSnap.size;
+            alertSnap.forEach(doc => {
+                const a = doc.data();
+                alertsBody.innerHTML += `<tr><td>#${a.userId.slice(-5)}</td><td><span style="color:var(--danger)">${a.type}</span></td><td>${new Date(a.timestamp).toLocaleTimeString()}</td><td><button class="btn btn-danger" style="padding:5px 10px;">Ban</button></td></tr>`;
+            });
+
+            // Fetch users (with simple client side date filtering for signups if needed)
+            const uSnap = await db.collection("users").orderBy("joinedAt", "desc").get();
+            let totalCoins = 0;
+            let displayUsersCount = 0;
+            
+            const uTable = document.getElementById('u-table-body');
+            const signupList = document.getElementById('signup-list');
+            uTable.innerHTML = ""; signupList.innerHTML = "";
+            
+            uSnap.forEach((doc) => {
+                const u = doc.data(); 
+                totalCoins += (u.coins || 0);
+                
+                // Add Edit Coin and Ban logic to table
+                const isBanned = u.isBanned ? true : false;
+                uTable.innerHTML += `
+                <tr>
+                    <td>#${doc.id}</td>
+                    <td>${u.name}</td>
+                    <td>
+                        <input type="number" id="coin-${doc.id}" value="${Math.floor(u.coins)}" class="form-control" style="width: 100px; display: inline-block; padding: 6px; font-size: 12px;">
+                        <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px;" onclick="updateCoins('${doc.id}')">Save</button>
+                    </td>
+                    <td>
+                        <button class="btn ${isBanned ? 'btn-success' : 'btn-danger'}" style="padding:6px 12px; font-size: 11px;" onclick="toggleBan('${doc.id}', ${isBanned})">${isBanned ? 'Unban User' : 'Ban User'}</button>
+                    </td>
+                </tr>`;
+                
+                // Simple check for Date Filter on Signups
+                let joinedDateStr = "";
+                if(u.joinedAt) joinedDateStr = u.joinedAt.split('T')[0];
+                
+                if(selectedDateStr === "" || joinedDateStr === selectedDateStr) {
+                    displayUsersCount++;
+                    if(displayUsersCount <= 3) {
+                        signupList.innerHTML += `<div class="signup-item" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}" width="40"></div><div><p style="font-weight:600">${u.name}</p><p style="font-size:11px; color:var(--text-muted)">Joined ${joinedDateStr}</p></div></div>`;
+                    }
+                }
+            });
+            
+            // Show stats (if no date is selected, show total, else show filtered count)
+            document.getElementById('stat-users').innerText = (selectedDateStr ? displayUsersCount : uSnap.size).toLocaleString();
+            document.getElementById('stat-coins').innerText = (totalCoins / 1000000).toFixed(1) + "M";
+
+            // TASKS with Order
+            const tasksSnap = await db.collection("tasks").orderBy("order").get();
+            const tTable = document.querySelector("#task-table tbody");
+            tTable.innerHTML = "";
+            tasksSnap.forEach(doc => {
+                const t = doc.data();
+                tTable.innerHTML += `<tr><td>${t.order || 0}</td><td><img src="${t.logo}" width="30" style="border-radius:5px;"></td><td>${t.title}</td><td>${t.reward}</td><td><button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteDoc('tasks','${doc.id}')">Delete</button></td></tr>`;
+            });
+        }
+
+        // --- NEW ADMIN FUNCTIONS ---
+        
+        window.updateCoins = async (userId) => {
+            const newCoins = Number(document.getElementById(`coin-${userId}`).value);
+            if(confirm("Update coins for this user?")) {
+                await db.collection("users").doc(userId).update({ coins: newCoins });
+                alert("Coins updated successfully!");
+                syncAll();
+            }
+        }
+
+        window.toggleBan = async (userId, currentState) => {
+            if(confirm(`Are you sure you want to ${currentState ? 'Unban' : 'Ban'} this user?`)) {
+                await db.collection("users").doc(userId).update({ isBanned: !currentState });
+                syncAll();
+            }
+        }
+
+        async function saveAds() {
+            await db.collection("settings").doc("global").set({
+                ads_block_id: document.getElementById('set-ads-id').value,
+                fallback_url: document.getElementById('set-fallback').value,
+                box_reward: Number(document.getElementById('set-box').value),
+                ad_limit: Number(document.getElementById('set-limit').value)
+            }, { merge: true });
+            alert("Ads Settings Updated!");
+        }
+
+        async function saveEconomy() {
+            await db.collection("settings").doc("global").set({
+                multi_tap_cost: Number(document.getElementById('e-tap').value),
+                storage_cost: Number(document.getElementById('e-energy').value)
+            }, { merge: true });
+            alert("Economy Costs Updated!");
+        }
+
+        async function addTask() {
+            const title = document.getElementById('t-name').value;
+            const reward = document.getElementById('t-reward').value;
+            const logo = document.getElementById('t-logo').value;
+            const url = document.getElementById('t-link').value;
+            const order = document.getElementById('t-order').value;
+            
+            if(!title || !reward || !url) return alert("Fill required fields!");
+
+            await db.collection("tasks").add({ 
+                title, 
+                reward: Number(reward), 
+                logo, 
+                url,
+                order: Number(order) || 99 
+            });
+            alert("Task Deployed!"); 
+            
+            // Clear inputs
+            document.getElementById('t-name').value = '';
+            document.getElementById('t-reward').value = '';
+            document.getElementById('t-logo').value = '';
+            document.getElementById('t-link').value = '';
+            document.getElementById('t-order').value = '';
+            
+            syncAll();
+        }
+
+        async function deleteDoc(col, id) { if(confirm("Delete this item?")) { await db.collection(col).doc(id).delete(); syncAll(); } }
+
+        function filterUsers() {
+            let input = document.getElementById('u-search').value.toUpperCase();
+            let rows = document.querySelector("#u-table-body").rows;
+            for (let i = 0; i < rows.length; i++) {
+                let idCol = rows[i].cells[0].textContent.toUpperCase();
+                rows[i].style.display = idCol.includes(input) ? "" : "none";
+            }
+        }
+
+        window.onload = () => {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: ['S','M','T','W','T','F','S'], datasets: [{ data: [0,0,0,0,0,0,0], borderColor: '#38bdf8', tension: 0.4, fill: true, backgroundColor: 'rgba(56, 189, 248, 0.1)' }] },
+                options: { plugins: { legend: { display: false } } }
+            });
+        };
+    </script>
+</body>
+</html>
