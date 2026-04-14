@@ -23,24 +23,12 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
 
-        /* ====== LOGIN PAGE CSS ====== */
-        #auth-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-base); z-index: 9999;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(15px);
-        }
-        .login-card {
-            background: var(--bg-panel); border: 1px solid var(--primary);
-            padding: 40px; border-radius: 24px; width: 380px; text-align: center;
-            box-shadow: 0 0 40px var(--primary-glow);
-        }
+        #auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-base); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .login-card { background: var(--bg-panel); border: 1px solid var(--primary); padding: 40px; border-radius: 24px; width: 380px; text-align: center; box-shadow: 0 0 40px var(--primary-glow); }
         .login-card i { font-size: 50px; color: var(--primary); margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--primary)); }
 
-        /* Dashboard Hidden initially */
         #admin-wrapper { display: none; width: 100%; height: 100vh; }
 
-        /* ====== ORIGINAL THEME CSS (NO CHANGES) ====== */
         aside { width: 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
         .brand { padding: 24px; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--border); }
         .brand i { color: var(--primary); filter: drop-shadow(0 0 8px var(--primary-glow)); }
@@ -68,13 +56,19 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
         .form-control { width: 100%; padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
-        .btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: #0f172a; }
         .btn-success { background: var(--success); color: #000; }
+        .btn-warning { background: var(--warning); color: #000; }
         .search-box { display: flex; align-items: center; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; margin-bottom: 20px; width: 400px; }
         .search-box input { background: transparent; border: none; color: #fff; outline: none; margin-left: 10px; width: 100%; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+
+        /* Filter Pills */
+        .filter-pills { display: flex; gap: 8px; align-items: center; margin-right: 15px;}
+        .pill { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; transition: 0.2s; }
+        .pill.active, .pill:hover { background: var(--primary); color: #000; border-color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -86,7 +80,7 @@
             <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 25px;">Enter credentials to unlock dashboard</p>
             <input type="email" id="login-email" class="form-control" placeholder="Admin Email" style="margin-bottom: 15px;">
             <input type="password" id="login-pass" class="form-control" placeholder="Password" style="margin-bottom: 20px;">
-            <button class="btn btn-primary" style="width: 100%;" onclick="loginAdmin()">Authorize Session</button>
+            <button class="btn btn-primary" style="width: 100%; padding: 12px;" onclick="loginAdmin()">Authorize Session</button>
             <p id="auth-err" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;">Invalid Login Details!</p>
         </div>
     </div>
@@ -111,30 +105,35 @@
         <main>
             <header>
                 <h2 id="page-title">Dashboard</h2>
-                <div>
-                    <label style="display: inline-block; margin-right: 10px; color: var(--text-muted); font-size: 12px;">Filter Date:</label>
-                    <input type="date" id="admin-date" class="form-control" style="width: auto; display: inline-block; padding: 8px;" onchange="syncAll()">
+                <div style="display: flex; align-items: center;">
+                    <div class="filter-pills">
+                        <div class="pill active" onclick="setPresetFilter('all', this)">All Time</div>
+                        <div class="pill" onclick="setPresetFilter('today', this)">Today</div>
+                        <div class="pill" onclick="setPresetFilter('week', this)">This Week</div>
+                        <div class="pill" onclick="setPresetFilter('month', this)">This Month</div>
+                    </div>
+                    <input type="date" id="admin-date" class="form-control" style="width: auto; padding: 6px; font-size: 12px;" onchange="customDateFilter()">
                 </div>
             </header>
             <div class="content-area">
                 <div id="tab-dashboard" class="tab-content active">
-                    <div style="margin-bottom:24px;"><h1>Overview</h1><p style="color:var(--text-muted)">Live statistics and app performance tracking.</p></div>
+                    <div style="margin-bottom:24px;"><h1>Overview</h1><p style="color:var(--text-muted)">Live statistics calculating directly from user data.</p></div>
                     <div class="grid-4">
                         <div class="stat-card">
-                            <div class="stat-top"><i class="fa-solid fa-users" style="color:var(--primary)"></i> <div class="trend up" id="tr-users">0%</div></div>
+                            <div class="stat-top"><i class="fa-solid fa-users" style="color:var(--primary)"></i></div>
                             <p style="font-size:12px; color:var(--text-muted)">Total Registered Users</p><h3 id="stat-users">0</h3>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-top"><i class="fa-brands fa-bitcoin" style="color:var(--success)"></i> <div class="trend up" id="tr-coins">0%</div></div>
+                            <div class="stat-top"><i class="fa-brands fa-bitcoin" style="color:var(--success)"></i></div>
                             <p style="font-size:12px; color:var(--text-muted)">Total Coins Mined</p><h3 id="stat-coins">0.0M</h3>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-top"><i class="fa-solid fa-play" style="color:var(--accent)"></i> <div class="trend up" id="tr-ads">0%</div></div>
+                            <div class="stat-top"><i class="fa-solid fa-play" style="color:var(--accent)"></i></div>
                             <p style="font-size:12px; color:var(--text-muted)">Total Ads Watched</p><h3 id="stat-ads">0</h3>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-top"><i class="fa-solid fa-bolt" style="color:var(--warning)"></i> <div class="trend down" id="tr-dau">0%</div></div>
-                            <p style="font-size:12px; color:var(--text-muted)">Daily Active Users (DAU)</p><h3 id="stat-dau">0</h3>
+                            <div class="stat-top"><i class="fa-solid fa-bolt" style="color:var(--warning)"></i></div>
+                            <p style="font-size:12px; color:var(--text-muted)">Daily Active Users (24h)</p><h3 id="stat-dau">0</h3>
                         </div>
                     </div>
                     <div class="dashboard-grid">
@@ -161,18 +160,33 @@
 
                 <div id="tab-tasks" class="tab-content">
                     <div class="panel">
-                        <h3>Create Task</h3>
+                        <h3 id="task-form-title">Create New Task</h3>
+                        <input type="hidden" id="edit-task-id" value="">
                         <div class="form-grid" style="margin-top:20px;">
-                            <input type="text" id="t-name" class="form-control" placeholder="Task Name">
-                            <input type="number" id="t-reward" class="form-control" placeholder="Reward Amount">
-                            <input type="text" id="t-logo" class="form-control" placeholder="Image/Logo URL">
-                            <input type="text" id="t-link" class="form-control" placeholder="Destination Link (TG/Web)">
-                            <input type="number" id="t-order" class="form-control" placeholder="Position / Serial (e.g. 1, 2, 3)">
+                            <div class="form-group"><label>Task Name</label><input type="text" id="t-name" class="form-control" placeholder="e.g. Join Official Channel"></div>
+                            <div class="form-group"><label>Reward Coins</label><input type="number" id="t-reward" class="form-control" placeholder="e.g. 50000"></div>
+                            <div class="form-group"><label>Task Type</label>
+                                <select id="t-type" class="form-control" style="appearance: auto;">
+                                    <option value="link">URL / Link (Telegram, YouTube)</option>
+                                    <option value="ad">Video Ad (Infinite Ad Loop)</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Logo/Icon URL or FontAwesome class</label><input type="text" id="t-logo" class="form-control" placeholder="e.g. fa-brands fa-telegram OR https://..."></div>
+                            <div class="form-group"><label>Destination Link (If Type = Link)</label><input type="text" id="t-link" class="form-control" placeholder="https://t.me/yourchannel"></div>
+                            <div class="form-group"><label>Position / Serial</label><input type="number" id="t-order" class="form-control" placeholder="1, 2, 3..."></div>
                         </div>
-                        <button class="btn btn-primary" onclick="addTask()" style="margin-top:15px;">Deploy Task</button>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button id="btn-add-task" class="btn btn-primary" onclick="saveTaskData(false)">Deploy Task</button>
+                            <button id="btn-update-task" class="btn btn-success" style="display:none;" onclick="saveTaskData(true)">Update Task</button>
+                            <button id="btn-cancel-edit" class="btn btn-warning" style="display:none;" onclick="cancelTaskEdit()">Cancel Edit</button>
+                        </div>
                     </div>
-                    <div class="panel" style="margin-top:20px;">
-                        <table id="task-table"><thead><tr><th>Position</th><th>Logo</th><th>Task Name</th><th>Reward</th><th>Action</th></tr></thead><tbody></tbody></table>
+                    <div class="panel" style="margin-top:20px; overflow-x: auto;">
+                        <table id="task-table">
+                            <thead><tr><th>Position</th><th>Icon</th><th>Name</th><th>Type</th><th>Reward</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -188,10 +202,10 @@
                 </div>
 
                 <div id="tab-users" class="tab-content">
-                    <div class="search-box"><i class="fa-solid fa-search"></i><input type="text" id="u-search" placeholder="Search ID..." onkeyup="filterUsers()"></div>
+                    <div class="search-box"><i class="fa-solid fa-search"></i><input type="text" id="u-search" placeholder="Search ID or Name..." onkeyup="filterUsers()"></div>
                     <div class="panel" style="overflow-x: auto;">
                         <table>
-                            <thead><tr><th>User ID</th><th>Name</th><th>Edit Coins</th><th>Status / Ban</th></tr></thead>
+                            <thead><tr><th>User ID</th><th>Name</th><th>Ads Watched</th><th>Edit Coins</th><th>Status / Ban</th></tr></thead>
                             <tbody id="u-table-body"></tbody>
                         </table>
                     </div>
@@ -216,6 +230,49 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
         let myChart;
+        let globalUsersData = [];
+
+        // DATE FILTER LOGIC
+        let activeFilterType = 'all'; 
+        
+        function setPresetFilter(type, el) {
+            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            if(el) el.classList.add('active');
+            activeFilterType = type;
+            document.getElementById('admin-date').value = ''; // clear custom date
+            renderFilteredUsers();
+        }
+
+        function customDateFilter() {
+            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            activeFilterType = 'custom';
+            renderFilteredUsers();
+        }
+
+        function isDateInRange(joinedDateStr) {
+            if (activeFilterType === 'all') return true;
+            if (!joinedDateStr) return false;
+            
+            const joinDate = new Date(joinedDateStr);
+            const now = new Date();
+            
+            if (activeFilterType === 'custom') {
+                const selected = document.getElementById('admin-date').value;
+                return joinedDateStr.split('T')[0] === selected;
+            }
+            if (activeFilterType === 'today') {
+                return joinDate.toDateString() === now.toDateString();
+            }
+            if (activeFilterType === 'week') {
+                const weekAgo = new Date();
+                weekAgo.setDate(now.getDate() - 7);
+                return joinDate >= weekAgo;
+            }
+            if (activeFilterType === 'month') {
+                return joinDate.getMonth() === now.getMonth() && joinDate.getFullYear() === now.getFullYear();
+            }
+            return true;
+        }
 
         // AUTH LOGIC
         function loginAdmin() {
@@ -229,15 +286,12 @@
 
         function logoutAdmin() { auth.signOut(); }
 
-        // MONITOR SESSION
         auth.onAuthStateChanged(user => {
             const overlay = document.getElementById('auth-overlay');
             const wrapper = document.getElementById('admin-wrapper');
             if (user) {
                 overlay.style.display = 'none';
                 wrapper.style.display = 'flex';
-                // Set default date to today
-                document.getElementById('admin-date').valueAsDate = new Date();
                 syncAll(); 
             } else {
                 overlay.style.display = 'flex';
@@ -256,20 +310,11 @@
 
         async function syncAll() {
             if(!auth.currentUser) return;
-            
             try {
-                const selectedDateStr = document.getElementById('admin-date').value;
-                
-                // 1. Load Settings
+                // 1. Settings
                 const gDoc = await db.collection("settings").doc("global").get();
                 if (gDoc.exists) {
                     const d = gDoc.data();
-                    document.getElementById('stat-ads').innerText = (d.total_ads || 0).toLocaleString();
-                    document.getElementById('stat-dau').innerText = (d.dau || 0).toLocaleString();
-                    document.getElementById('tr-users').innerText = (d.tr_users || 0) + "%";
-                    document.getElementById('tr-coins').innerText = (d.tr_coins || 0) + "%";
-                    document.getElementById('tr-ads').innerText = (d.tr_ads || 0) + "%";
-                    document.getElementById('tr-dau').innerText = (d.tr_dau || 0) + "%";
                     document.getElementById('set-ads-id').value = d.ads_block_id || "";
                     document.getElementById('set-fallback').value = d.fallback_url || "";
                     document.getElementById('set-box').value = d.box_reward || 0;
@@ -278,40 +323,64 @@
                     document.getElementById('e-energy').value = d.storage_cost || 0;
                 }
 
-                // 2. Load Alerts (Done securely via JS to avoid index issues)
+                // 2. Alerts
                 const alertsBody = document.getElementById('alerts-body');
                 const alertSnap = await db.collection("alerts").get();
                 let alertsArray = [];
                 alertSnap.forEach(doc => alertsArray.push(doc.data()));
-                alertsArray.sort((a,b) => b.timestamp - a.timestamp); // Sort by newest
-                
+                alertsArray.sort((a,b) => b.timestamp - a.timestamp);
                 alertsBody.innerHTML = "";
                 document.getElementById('security-badge').innerText = alertsArray.length;
                 alertsArray.slice(0, 5).forEach(a => {
                     alertsBody.innerHTML += `<tr><td>#${a.userId.slice(-5)}</td><td><span style="color:var(--danger)">${a.type}</span></td><td>${new Date(a.timestamp).toLocaleTimeString()}</td><td><button class="btn btn-danger" style="padding:5px 10px;">Ban</button></td></tr>`;
                 });
 
-                // 3. Load Users (No orderBy, sorted via JS to prevent indexing crash)
+                // 3. Fetch Users for Dashboard and Table
                 const uSnap = await db.collection("users").get();
-                let usersArray = [];
-                uSnap.forEach(doc => usersArray.push({ id: doc.id, ...doc.data() }));
-                usersArray.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0)); // Sort by newest
+                globalUsersData = [];
+                uSnap.forEach(doc => globalUsersData.push({ id: doc.id, ...doc.data() }));
+                globalUsersData.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0));
 
-                let totalCoins = 0;
-                let displayUsersCount = 0;
-                
-                const uTable = document.getElementById('u-table-body');
-                const signupList = document.getElementById('signup-list');
-                uTable.innerHTML = ""; signupList.innerHTML = "";
-                
-                usersArray.forEach((u) => {
-                    totalCoins += (u.coins || 0);
-                    
+                renderFilteredUsers(); // Also handles Dashboard Stats
+
+                // 4. Tasks Fetch
+                fetchAndRenderTasks();
+
+            } catch (err) {
+                console.error("Admin data sync error: ", err);
+            }
+        }
+
+        function renderFilteredUsers() {
+            let totalCoins = 0;
+            let totalAds = 0;
+            let dauCount = 0;
+            let displayUsersCount = 0;
+            const now = new Date();
+
+            const uTable = document.getElementById('u-table-body');
+            const signupList = document.getElementById('signup-list');
+            uTable.innerHTML = ""; signupList.innerHTML = "";
+
+            globalUsersData.forEach(u => {
+                // Calculate Global Stats regardless of filter
+                totalCoins += (u.coins || 0);
+                totalAds += (u.adsWatched || 0);
+                if (u.lastSeen) {
+                    const diffTime = Math.abs(now - new Date(u.lastSeen));
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    if (diffDays <= 1) dauCount++;
+                }
+
+                // Render Table based on Date Filter
+                if (isDateInRange(u.joinedAt)) {
+                    displayUsersCount++;
                     const isBanned = u.isBanned ? true : false;
                     uTable.innerHTML += `
                     <tr>
                         <td>#${u.id}</td>
                         <td>${u.name || 'Unknown'}</td>
+                        <td style="color: var(--gold); font-weight: bold;">${u.adsWatched || 0}</td>
                         <td>
                             <input type="number" id="coin-${u.id}" value="${Math.floor(u.coins || 0)}" class="form-control" style="width: 100px; display: inline-block; padding: 6px; font-size: 12px;">
                             <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px;" onclick="updateCoins('${u.id}')">Save</button>
@@ -320,41 +389,113 @@
                             <button class="btn ${isBanned ? 'btn-success' : 'btn-danger'}" style="padding:6px 12px; font-size: 11px;" onclick="toggleBan('${u.id}', ${isBanned})">${isBanned ? 'Unban User' : 'Ban User'}</button>
                         </td>
                     </tr>`;
-                    
-                    let joinedDateStr = "";
-                    if(u.joinedAt) joinedDateStr = u.joinedAt.split('T')[0];
-                    
-                    if(selectedDateStr === "" || joinedDateStr === selectedDateStr) {
-                        displayUsersCount++;
-                        if(displayUsersCount <= 3) {
-                            signupList.innerHTML += `<div class="signup-item" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}" width="40"></div><div><p style="font-weight:600">${u.name}</p><p style="font-size:11px; color:var(--text-muted)">Joined ${joinedDateStr}</p></div></div>`;
-                        }
+
+                    if(displayUsersCount <= 3) {
+                        let joinStr = u.joinedAt ? u.joinedAt.split('T')[0] : 'N/A';
+                        signupList.innerHTML += `<div class="signup-item" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}" width="40"></div><div><p style="font-weight:600">${u.name}</p><p style="font-size:11px; color:var(--text-muted)">Joined ${joinStr}</p></div></div>`;
                     }
-                });
-                
-                document.getElementById('stat-users').innerText = (selectedDateStr ? displayUsersCount : usersArray.length).toLocaleString();
-                document.getElementById('stat-coins').innerText = (totalCoins / 1000000).toFixed(1) + "M";
+                }
+            });
 
-                // 4. Load Tasks (No orderBy)
-                const tasksSnap = await db.collection("tasks").get();
-                let taskArray = [];
-                tasksSnap.forEach(doc => taskArray.push({ id: doc.id, ...doc.data() }));
-                taskArray.sort((a,b) => (a.order || 99) - (b.order || 99)); // Sort by order
-
-                const tTable = document.querySelector("#task-table tbody");
-                tTable.innerHTML = "";
-                taskArray.forEach(t => {
-                    tTable.innerHTML += `<tr><td>${t.order || 0}</td><td><img src="${t.logo}" width="30" style="border-radius:5px;"></td><td>${t.title}</td><td>${t.reward}</td><td><button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteDoc('tasks','${t.id}')">Delete</button></td></tr>`;
-                });
-
-            } catch (err) {
-                console.error("Admin data sync error: ", err);
-                alert("Error loading data from database. Check console for details.");
-            }
+            // Update Dashboard Stats UI
+            document.getElementById('stat-users').innerText = globalUsersData.length.toLocaleString();
+            document.getElementById('stat-coins').innerText = (totalCoins / 1000000).toFixed(2) + "M";
+            document.getElementById('stat-ads').innerText = totalAds.toLocaleString();
+            document.getElementById('stat-dau').innerText = dauCount.toLocaleString();
         }
 
-        // --- NEW ADMIN FUNCTIONS ---
-        
+        async function fetchAndRenderTasks() {
+            const tasksSnap = await db.collection("tasks").get();
+            let taskArray = [];
+            tasksSnap.forEach(doc => taskArray.push({ id: doc.id, ...doc.data() }));
+            taskArray.sort((a,b) => (a.order || 99) - (b.order || 99));
+
+            const tTable = document.querySelector("#task-table tbody");
+            tTable.innerHTML = "";
+            taskArray.forEach(t => {
+                let iconHtml = t.logo.includes('fa-') ? `<i class="${t.logo}" style="color:var(--primary); font-size: 18px;"></i>` : `<img src="${t.logo}" width="30" style="border-radius:5px;">`;
+                let safeTitle = t.title.replace(/'/g, "\\'");
+                let safeLogo = t.logo.replace(/'/g, "\\'");
+                let safeUrl = (t.url || "").replace(/'/g, "\\'");
+                
+                tTable.innerHTML += `<tr>
+                    <td><strong>${t.order || 0}</strong></td>
+                    <td>${iconHtml}</td>
+                    <td>${t.title}</td>
+                    <td><span style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 3px 6px; border-radius: 4px;">${(t.taskType || 'link').toUpperCase()}</span></td>
+                    <td style="color:var(--gold);">+${t.reward}</td>
+                    <td>
+                        <button class="btn btn-primary" style="padding:6px 10px; font-size:11px;" onclick="editTask('${t.id}', '${safeTitle}', ${t.reward}, '${safeLogo}', '${safeUrl}', ${t.order || 99}, '${t.taskType || 'link'}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteDoc('tasks','${t.id}')">Delete</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // TASK EDITING LOGIC
+        window.editTask = (id, title, reward, logo, url, order, type) => {
+            document.getElementById('task-form-title').innerText = "Edit Task";
+            document.getElementById('edit-task-id').value = id;
+            document.getElementById('t-name').value = title;
+            document.getElementById('t-reward').value = reward;
+            document.getElementById('t-logo').value = logo;
+            document.getElementById('t-link').value = url;
+            document.getElementById('t-order').value = order;
+            document.getElementById('t-type').value = type;
+
+            document.getElementById('btn-add-task').style.display = 'none';
+            document.getElementById('btn-update-task').style.display = 'block';
+            document.getElementById('btn-cancel-edit').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        window.cancelTaskEdit = () => {
+            document.getElementById('task-form-title').innerText = "Create New Task";
+            document.getElementById('edit-task-id').value = "";
+            document.getElementById('t-name').value = "";
+            document.getElementById('t-reward').value = "";
+            document.getElementById('t-logo').value = "";
+            document.getElementById('t-link').value = "";
+            document.getElementById('t-order').value = "";
+            document.getElementById('t-type').value = "link";
+
+            document.getElementById('btn-add-task').style.display = 'block';
+            document.getElementById('btn-update-task').style.display = 'none';
+            document.getElementById('btn-cancel-edit').style.display = 'none';
+        }
+
+        window.saveTaskData = async (isUpdate) => {
+            const title = document.getElementById('t-name').value;
+            const reward = document.getElementById('t-reward').value;
+            const logo = document.getElementById('t-logo').value;
+            const url = document.getElementById('t-link').value;
+            const order = document.getElementById('t-order').value;
+            const taskType = document.getElementById('t-type').value;
+            
+            if(!title || !reward || !logo) return alert("Fill required fields (Title, Reward, Logo)!");
+
+            const taskData = { 
+                title, 
+                reward: Number(reward), 
+                logo, 
+                url,
+                taskType,
+                order: Number(order) || 99 
+            };
+
+            if(isUpdate) {
+                const taskId = document.getElementById('edit-task-id').value;
+                await db.collection("tasks").doc(taskId).update(taskData);
+                alert("Task Updated Successfully!");
+            } else {
+                await db.collection("tasks").add(taskData);
+                alert("New Task Deployed!"); 
+            }
+            
+            cancelTaskEdit(); // clears form and resets buttons
+            fetchAndRenderTasks();
+        }
+
         window.updateCoins = async (userId) => {
             const newCoins = Number(document.getElementById(`coin-${userId}`).value);
             if(confirm("Update coins for this user?")) {
@@ -389,42 +530,15 @@
             alert("Economy Costs Updated!");
         }
 
-        async function addTask() {
-            const title = document.getElementById('t-name').value;
-            const reward = document.getElementById('t-reward').value;
-            const logo = document.getElementById('t-logo').value;
-            const url = document.getElementById('t-link').value;
-            const order = document.getElementById('t-order').value;
-            
-            if(!title || !reward || !url) return alert("Fill required fields!");
-
-            await db.collection("tasks").add({ 
-                title, 
-                reward: Number(reward), 
-                logo, 
-                url,
-                order: Number(order) || 99 
-            });
-            alert("Task Deployed!"); 
-            
-            // Clear inputs
-            document.getElementById('t-name').value = '';
-            document.getElementById('t-reward').value = '';
-            document.getElementById('t-logo').value = '';
-            document.getElementById('t-link').value = '';
-            document.getElementById('t-order').value = '';
-            
-            syncAll();
-        }
-
-        async function deleteDoc(col, id) { if(confirm("Delete this item?")) { await db.collection(col).doc(id).delete(); syncAll(); } }
+        async function deleteDoc(col, id) { if(confirm("Delete this item?")) { await db.collection(col).doc(id).delete(); fetchAndRenderTasks(); } }
 
         function filterUsers() {
             let input = document.getElementById('u-search').value.toUpperCase();
             let rows = document.querySelector("#u-table-body").rows;
             for (let i = 0; i < rows.length; i++) {
                 let idCol = rows[i].cells[0].textContent.toUpperCase();
-                rows[i].style.display = idCol.includes(input) ? "" : "none";
+                let nameCol = rows[i].cells[1].textContent.toUpperCase();
+                rows[i].style.display = (idCol.includes(input) || nameCol.includes(input)) ? "" : "none";
             }
         }
 
