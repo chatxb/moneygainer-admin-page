@@ -257,86 +257,100 @@
         async function syncAll() {
             if(!auth.currentUser) return;
             
-            const selectedDateStr = document.getElementById('admin-date').value;
-            
-            const gDoc = await db.collection("settings").doc("global").get();
-            if (gDoc.exists) {
-                const d = gDoc.data();
-                document.getElementById('stat-ads').innerText = (d.total_ads || 0).toLocaleString();
-                document.getElementById('stat-dau').innerText = (d.dau || 0).toLocaleString();
-                document.getElementById('tr-users').innerText = (d.tr_users || 0) + "%";
-                document.getElementById('tr-coins').innerText = (d.tr_coins || 0) + "%";
-                document.getElementById('tr-ads').innerText = (d.tr_ads || 0) + "%";
-                document.getElementById('tr-dau').innerText = (d.tr_dau || 0) + "%";
-                document.getElementById('set-ads-id').value = d.ads_block_id || "";
-                document.getElementById('set-fallback').value = d.fallback_url || "";
-                document.getElementById('set-box').value = d.box_reward || 0;
-                document.getElementById('set-limit').value = d.ad_limit || 0;
-                document.getElementById('e-tap').value = d.multi_tap_cost || 0;
-                document.getElementById('e-energy').value = d.storage_cost || 0;
-            }
-
-            const alertsBody = document.getElementById('alerts-body');
-            const alertSnap = await db.collection("alerts").orderBy("timestamp", "desc").limit(5).get();
-            alertsBody.innerHTML = "";
-            document.getElementById('security-badge').innerText = alertSnap.size;
-            alertSnap.forEach(doc => {
-                const a = doc.data();
-                alertsBody.innerHTML += `<tr><td>#${a.userId.slice(-5)}</td><td><span style="color:var(--danger)">${a.type}</span></td><td>${new Date(a.timestamp).toLocaleTimeString()}</td><td><button class="btn btn-danger" style="padding:5px 10px;">Ban</button></td></tr>`;
-            });
-
-            // Fetch users (with simple client side date filtering for signups if needed)
-            const uSnap = await db.collection("users").orderBy("joinedAt", "desc").get();
-            let totalCoins = 0;
-            let displayUsersCount = 0;
-            
-            const uTable = document.getElementById('u-table-body');
-            const signupList = document.getElementById('signup-list');
-            uTable.innerHTML = ""; signupList.innerHTML = "";
-            
-            uSnap.forEach((doc) => {
-                const u = doc.data(); 
-                totalCoins += (u.coins || 0);
+            try {
+                const selectedDateStr = document.getElementById('admin-date').value;
                 
-                // Add Edit Coin and Ban logic to table
-                const isBanned = u.isBanned ? true : false;
-                uTable.innerHTML += `
-                <tr>
-                    <td>#${doc.id}</td>
-                    <td>${u.name}</td>
-                    <td>
-                        <input type="number" id="coin-${doc.id}" value="${Math.floor(u.coins)}" class="form-control" style="width: 100px; display: inline-block; padding: 6px; font-size: 12px;">
-                        <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px;" onclick="updateCoins('${doc.id}')">Save</button>
-                    </td>
-                    <td>
-                        <button class="btn ${isBanned ? 'btn-success' : 'btn-danger'}" style="padding:6px 12px; font-size: 11px;" onclick="toggleBan('${doc.id}', ${isBanned})">${isBanned ? 'Unban User' : 'Ban User'}</button>
-                    </td>
-                </tr>`;
-                
-                // Simple check for Date Filter on Signups
-                let joinedDateStr = "";
-                if(u.joinedAt) joinedDateStr = u.joinedAt.split('T')[0];
-                
-                if(selectedDateStr === "" || joinedDateStr === selectedDateStr) {
-                    displayUsersCount++;
-                    if(displayUsersCount <= 3) {
-                        signupList.innerHTML += `<div class="signup-item" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}" width="40"></div><div><p style="font-weight:600">${u.name}</p><p style="font-size:11px; color:var(--text-muted)">Joined ${joinedDateStr}</p></div></div>`;
-                    }
+                // 1. Load Settings
+                const gDoc = await db.collection("settings").doc("global").get();
+                if (gDoc.exists) {
+                    const d = gDoc.data();
+                    document.getElementById('stat-ads').innerText = (d.total_ads || 0).toLocaleString();
+                    document.getElementById('stat-dau').innerText = (d.dau || 0).toLocaleString();
+                    document.getElementById('tr-users').innerText = (d.tr_users || 0) + "%";
+                    document.getElementById('tr-coins').innerText = (d.tr_coins || 0) + "%";
+                    document.getElementById('tr-ads').innerText = (d.tr_ads || 0) + "%";
+                    document.getElementById('tr-dau').innerText = (d.tr_dau || 0) + "%";
+                    document.getElementById('set-ads-id').value = d.ads_block_id || "";
+                    document.getElementById('set-fallback').value = d.fallback_url || "";
+                    document.getElementById('set-box').value = d.box_reward || 0;
+                    document.getElementById('set-limit').value = d.ad_limit || 0;
+                    document.getElementById('e-tap').value = d.multi_tap_cost || 0;
+                    document.getElementById('e-energy').value = d.storage_cost || 0;
                 }
-            });
-            
-            // Show stats (if no date is selected, show total, else show filtered count)
-            document.getElementById('stat-users').innerText = (selectedDateStr ? displayUsersCount : uSnap.size).toLocaleString();
-            document.getElementById('stat-coins').innerText = (totalCoins / 1000000).toFixed(1) + "M";
 
-            // TASKS with Order
-            const tasksSnap = await db.collection("tasks").orderBy("order").get();
-            const tTable = document.querySelector("#task-table tbody");
-            tTable.innerHTML = "";
-            tasksSnap.forEach(doc => {
-                const t = doc.data();
-                tTable.innerHTML += `<tr><td>${t.order || 0}</td><td><img src="${t.logo}" width="30" style="border-radius:5px;"></td><td>${t.title}</td><td>${t.reward}</td><td><button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteDoc('tasks','${doc.id}')">Delete</button></td></tr>`;
-            });
+                // 2. Load Alerts (Done securely via JS to avoid index issues)
+                const alertsBody = document.getElementById('alerts-body');
+                const alertSnap = await db.collection("alerts").get();
+                let alertsArray = [];
+                alertSnap.forEach(doc => alertsArray.push(doc.data()));
+                alertsArray.sort((a,b) => b.timestamp - a.timestamp); // Sort by newest
+                
+                alertsBody.innerHTML = "";
+                document.getElementById('security-badge').innerText = alertsArray.length;
+                alertsArray.slice(0, 5).forEach(a => {
+                    alertsBody.innerHTML += `<tr><td>#${a.userId.slice(-5)}</td><td><span style="color:var(--danger)">${a.type}</span></td><td>${new Date(a.timestamp).toLocaleTimeString()}</td><td><button class="btn btn-danger" style="padding:5px 10px;">Ban</button></td></tr>`;
+                });
+
+                // 3. Load Users (No orderBy, sorted via JS to prevent indexing crash)
+                const uSnap = await db.collection("users").get();
+                let usersArray = [];
+                uSnap.forEach(doc => usersArray.push({ id: doc.id, ...doc.data() }));
+                usersArray.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0)); // Sort by newest
+
+                let totalCoins = 0;
+                let displayUsersCount = 0;
+                
+                const uTable = document.getElementById('u-table-body');
+                const signupList = document.getElementById('signup-list');
+                uTable.innerHTML = ""; signupList.innerHTML = "";
+                
+                usersArray.forEach((u) => {
+                    totalCoins += (u.coins || 0);
+                    
+                    const isBanned = u.isBanned ? true : false;
+                    uTable.innerHTML += `
+                    <tr>
+                        <td>#${u.id}</td>
+                        <td>${u.name || 'Unknown'}</td>
+                        <td>
+                            <input type="number" id="coin-${u.id}" value="${Math.floor(u.coins || 0)}" class="form-control" style="width: 100px; display: inline-block; padding: 6px; font-size: 12px;">
+                            <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px;" onclick="updateCoins('${u.id}')">Save</button>
+                        </td>
+                        <td>
+                            <button class="btn ${isBanned ? 'btn-success' : 'btn-danger'}" style="padding:6px 12px; font-size: 11px;" onclick="toggleBan('${u.id}', ${isBanned})">${isBanned ? 'Unban User' : 'Ban User'}</button>
+                        </td>
+                    </tr>`;
+                    
+                    let joinedDateStr = "";
+                    if(u.joinedAt) joinedDateStr = u.joinedAt.split('T')[0];
+                    
+                    if(selectedDateStr === "" || joinedDateStr === selectedDateStr) {
+                        displayUsersCount++;
+                        if(displayUsersCount <= 3) {
+                            signupList.innerHTML += `<div class="signup-item" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}" width="40"></div><div><p style="font-weight:600">${u.name}</p><p style="font-size:11px; color:var(--text-muted)">Joined ${joinedDateStr}</p></div></div>`;
+                        }
+                    }
+                });
+                
+                document.getElementById('stat-users').innerText = (selectedDateStr ? displayUsersCount : usersArray.length).toLocaleString();
+                document.getElementById('stat-coins').innerText = (totalCoins / 1000000).toFixed(1) + "M";
+
+                // 4. Load Tasks (No orderBy)
+                const tasksSnap = await db.collection("tasks").get();
+                let taskArray = [];
+                tasksSnap.forEach(doc => taskArray.push({ id: doc.id, ...doc.data() }));
+                taskArray.sort((a,b) => (a.order || 99) - (b.order || 99)); // Sort by order
+
+                const tTable = document.querySelector("#task-table tbody");
+                tTable.innerHTML = "";
+                taskArray.forEach(t => {
+                    tTable.innerHTML += `<tr><td>${t.order || 0}</td><td><img src="${t.logo}" width="30" style="border-radius:5px;"></td><td>${t.title}</td><td>${t.reward}</td><td><button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteDoc('tasks','${t.id}')">Delete</button></td></tr>`;
+                });
+
+            } catch (err) {
+                console.error("Admin data sync error: ", err);
+                alert("Error loading data from database. Check console for details.");
+            }
         }
 
         // --- NEW ADMIN FUNCTIONS ---
